@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="uz">  
+<head>  
+<meta charset="utf-8" />  
+<meta name="viewport" content="width=device-width,initial-scale=1" />  
+<title>Ob-havo (3 til)</title>  
+
+<style>
+body{
+    margin:0;
+    padding:0;
+    font-family:"Segoe UI",Roboto,Arial,sans-serif;
+    background:url('https://i.imgur.com/9aKpQK0.jpg') no-repeat center center fixed;
+    background-size:cover;
+    color:#fff;
+}
+.wrapper{
+    max-width:480px;
+    margin:40px auto;
+    padding:20px;
+}
+.card{
+    background:rgba(255,255,255,0.08);
+    border-radius:20px;
+    padding:24px;
+    backdrop-filter:blur(10px);
+    box-shadow:0 6px 25px rgba(0,0,0,0.4);
+}
+.lang-box{
+    display:flex;
+    gap:10px;
+    justify-content:center;
+    margin-bottom:15px;
+}
+.lang-box button{
+    padding:8px 14px;
+    border-radius:12px;
+    border:none;
+    cursor:pointer;
+    background:#475569;
+    color:white;
+}
+h1{font-size:26px;text-align:center;margin-bottom:15px;font-weight:600;}
+p{text-align:center;color:#e2e8f0;margin-bottom:15px;}
+button.main-btn{
+    width:100%;padding:14px;background:linear-gradient(135deg,#4f46e5,#7c3aed);
+    border:none;border-radius:14px;color:white;font-size:17px;
+    cursor:pointer;font-weight:600;margin-top:10px;
+}
+pre{
+    background:rgba(0,0,0,0.45);
+    padding:12px;border-radius:12px;font-size:15px;
+    white-space:pre-wrap;
+}
+.raw{
+    margin-top:12px;background:rgba(255,255,255,0.1);padding:10px;border-radius:10px;
+}
+
+/* 🔹 Tilni o'zgartirish tugmasi tepa o‘ng burchak, fon shaffof, surish mumkin */
+#changeLangBtn{
+    position:fixed;
+    right:15px;
+    top:55px;
+    padding:12px;
+    background:transparent;
+    border:none;
+    border-radius:50%;
+    color:white;
+    font-weight:600;
+    cursor:pointer;
+    z-index:999;
+    font-size:20px;
+    user-select:none;
+}
+#changeLangBtn:hover{
+    color:#ffeb3b;
+}
+</style>
+</head>
+
+<body>
+<div class="wrapper">
+  <div class="card">
+
+    <!-- TIL TANLASH -->
+    <div class="lang-box" id="langBox">
+      <button onclick="chooseLang('uz')">🇺🇿 UZ</button>
+      <button onclick="chooseLang('ru')">🇷🇺 RU</button>
+      <button onclick="chooseLang('en')">🇬🇧 EN</button>
+    </div>
+
+    <h1 id="title">🌌 🌤 Ob-Havo</h1>
+    <p id="subtext">Ob-havo maʼlumotlari faqat GPS orqali olinadi</p>
+
+    <!-- GPS tugmasi dastlab yashirin -->
+    <button id="gpsBtn" class="main-btn" style="display:none;">📍 Geolokatsiya orqali olish</button>
+
+    <p id="status"></p>
+
+    <div id="result" style="display:none;">
+        <pre id="msg"></pre>
+        <div class="raw" id="human"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 🌐 Tilni o'zgartirish tugmasi -->
+<button id="changeLangBtn" onclick="showLangBox()" style="display:none;">🌐</button>
+
+<script>
+const API_KEY = "a59a8833900870cdfd4bf420d18105ce";
+
+let LANG = ""; // dastlab til tanlanmagan
+
+/* ================== UI TARJIMALARI ================== */
+const TEXT = {
+    uz:{title:"🌌 🌤 Ob-Havo", sub:"Ob-havo maʼlumotlari faqat GPS orqali olinadi", gps:"📍 Geolokatsiya orqali olish", loading:"Yuklanmoqda...", today:"📅 Bugungi ob-havo", days3:"📆 3 kunlik ob-havo", back:"⬅️ Orqaga", ready:"🌥️ Ob-havo Ma‘lumoti Tayyor !", getting:"Joylashuv olinmoqda..."},
+    ru:{title:"🌌 🌤 Погода", sub:"Данные о погоде получаются только через GPS", gps:"📍 Получить погоду по геолокации", loading:"Загрузка...", today:"📅 Погода на сегодня", days3:"📆 Прогноз на 3 дня", back:"⬅️ Назад", ready:"🌥️ Данные готовы!", getting:"Получение местоположения..."},
+    en:{title:"🌌 🌤 Weather", sub:"Weather data is retrieved only via GPS", gps:"📍 Get weather via GPS", loading:"Loading...", today:"📅 Today's Weather", days3:"📆 3-Day Forecast", back:"⬅️ Back", ready:"🌥️ Weather data ready!", getting:"Getting location..."}
+};
+
+/* ================== OB-HAVO QATOR TARJIMASI ================== */
+const WX_TEXT = {
+    uz:{loc:"📍 Joylashuv:", cond:"🌥️ Holati:", temp:"🌡 Harorat:", feels:"🤗 His etilishi:", hum:"💧 Namlik:", wind:"💨 Shamol:", vis:"🔭 Ko‘rinish:", press:"📊 Bosim:", sunr:"🌅 Quyosh chiqishi:", suns:"🌇 Quyosh botishi:"},
+    ru:{loc:"📍 Локация:", cond:"⛅ Состояние:", temp:"🌡 Температура:", feels:"🤗 Ощущается как:", hum:"💧 Влажность:", wind:"💨 Ветер:", vis:"🔭 Видимость:", press:"📊 Давление:", sunr:"🌅 Восход солнца:", suns:"🌇 Закат солнца:"},
+    en:{loc:"📍 Location:", cond:"⛅ Condition:", temp:"🌡 Temperature:", feels:"🤗 Feels like:", hum:"💧 Humidity:", wind:"💨 Wind:", vis:"🔭 Visibility:", press:"📊 Pressure:", sunr:"🌅 Sunrise:", suns:"🌇 Sunset:"}
+};
+
+/* ================== OʻZBEKCHA OB-HAVO LUG'ATI ================== */
+const WEATHER_UZ = {"clear sky":"Ochiq osmon","few clouds":"Biroz bulutli","scattered clouds":"Parokanda bulutlar","broken clouds":"Qisman bulutli","overcast clouds":"To‘liq bulutli","light rain":"Yengil yomg‘ir","moderate rain":"O‘rtacha yomg‘ir","heavy intensity rain":"Kuchli yomg‘ir","very heavy rain":"Juda kuchli yomg‘ir","extreme rain":"Ekstremal yomg‘ir","shower rain":"Yog‘ingarchilik","light snow":"Yengil qor","snow":"Qor","heavy snow":"Kuchli qor","mist":"Tuman","fog":"Qalin tuman","haze":"Tutun","smoke":"Tutun","dust":"Chang","sand":"Qum bo‘roni","thunderstorm":"Momaqaldiroq","thunderstorm with rain":"Yomg‘irli momaqaldiroq","thunderstorm with heavy rain":"Kuchli yomg‘ir bilan momaqaldiroq"};
+function uzDesc(text){ text=text.toLowerCase(); return WEATHER_UZ[text]||cap(text); }
+
+/* ================== TIL TANLASH FUNKSIYASI ================== */
+function chooseLang(l){
+    LANG = l;
+    document.getElementById("title").textContent = TEXT[l].title;
+    document.getElementById("subtext").textContent = TEXT[l].sub;
+
+    // GPS tugmasini ko'rsatish
+    document.getElementById("gpsBtn").style.display="block";
+
+    // Til tanlash tugmalarini yashirish
+    document.getElementById("langBox").style.display="none";
+
+    // Tilni o'zgartirish tugmasini ko'rsatish
+    document.getElementById("changeLangBtn").style.display="block";
+}
+
+function showLangBox(){
+    document.getElementById("langBox").style.display="flex";
+    document.getElementById("gpsBtn").style.display="none";
+}
+
+/* ================== OB-HAVO FUNKSIYALARI ================== */
+const gpsBtn = document.getElementById("gpsBtn");
+const statusEl = document.getElementById("status");
+const msg = document.getElementById("msg");
+const human = document.getElementById("human");
+const result = document.getElementById("result");
+
+let LAST_LAT=null, LAST_LON=null;
+
+gpsBtn.onclick = getLocation;
+function getLocation(){
+    statusEl.textContent = TEXT[LANG].getting;
+    navigator.geolocation.getCurrentPosition(pos=>{
+        LAST_LAT=pos.coords.latitude;
+        LAST_LON=pos.coords.longitude;
+        showMenu();
+    }, err=>{
+        statusEl.textContent = "Xato: " + err.message;
+    });
+}
+
+function showMenu(){
+    result.style.display="block";
+    msg.textContent = "@TheWeather_ObHavo_Bot";
+    human.innerHTML = `
+<button class="main-btn" onclick="todayWeather()">${TEXT[LANG].today}</button>
+<button class="main-btn" onclick="threeDays()">${TEXT[LANG].days3}</button>
+`;
+}
+
+async function todayWeather(){
+    statusEl.textContent = TEXT[LANG].loading;
+    try{
+        const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${LAST_LAT}&lon=${LAST_LON}&appid=${API_KEY}&units=metric&lang=${LANG}`);
+        const d = await res.json();
+        const t = WX_TEXT[LANG];
+        let text = "";
+        text += `${t.loc} ${d.name}, ${d.sys.country}\n`;
+        text += `${t.cond} ${LANG==="uz"? uzDesc(d.weather[0].description):cap(d.weather[0].description)}\n`;
+        text += `${t.temp} ${Math.round(d.main.temp)}°C\n`;
+        text += `${t.feels} ${Math.round(d.main.feels_like)}°C\n`;
+        text += `${t.hum} ${d.main.humidity}%\n`;
+        text += `${t.wind} ${d.wind.speed} m/s\n`;
+        text += `${t.vis} ${(d.visibility/1000).toFixed(1)} km\n`;
+        text += `${t.press} ${d.main.pressure} hPa\n`;
+        text += `${t.sunr} ${formatTime(d.sys.sunrise, d.timezone)}\n`;
+        text += `${t.suns} ${formatTime(d.sys.sunset, d.timezone)}\n`;
+        msg.textContent = text;
+        human.innerHTML = `<button class="main-btn" onclick="showMenu()">${TEXT[LANG].back}</button>`;
+        statusEl.textContent = TEXT[LANG].ready;
+    } catch(e){ statusEl.textContent = "Xato: "+e.message; }
+}
+
+async function threeDays(){
+    statusEl.textContent = TEXT[LANG].loading;
+    try{
+        const res = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${LAST_LAT}&lon=${LAST_LON}&appid=${API_KEY}&units=metric&lang=${LANG}`);
+        const d = await res.json();
+        const group={};
+        d.list.forEach(el=>{
+            const day=new Date(el.dt*1000).toISOString().slice(0,10);
+            if(!group[day]) group[day]=el;
+        });
+        const days=Object.keys(group).slice(0,3);
+        let text="";
+        days.forEach(day=>{
+            const el=group[day];
+            text += `${day}\n`;
+            text += `${WX_TEXT[LANG].cond} ${LANG==="uz"? uzDesc(el.weather[0].description):cap(el.weather[0].description)}\n`;
+            text += `${WX_TEXT[LANG].temp} ${Math.round(el.main.temp)}°C\n`;
+            text += "--------------------\n";
+        });
+        msg.textContent=text;
+        human.innerHTML = `<button class="main-btn" onclick="showMenu()">${TEXT[LANG].back}</button>`;
+        statusEl.textContent = TEXT[LANG].ready;
+    } catch(e){ statusEl.textContent = "Xato: "+e.message; }
+}
+
+/* ================== YORDAMCHI ================== */
+function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+function formatTime(sec, offset){ const local = (sec + offset); const d = new Date(local * 1000); return d.toISOString().slice(11,16);}
+
+/* ================== 🌐 Tugmani surish funksiyasi ================== */
+const btn = document.getElementById("changeLangBtn");
+let isDragging = false;
+let offsetX = 0;
+
+btn.addEventListener('mousedown', e => {
+    isDragging = true;
+    offsetX = e.clientX - btn.getBoundingClientRect().left;
+});
+document.addEventListener('mouseup', () => {
+    isDragging = false;
+});
+document.addEventListener('mousemove', e => {
+    if(isDragging){
+        let newLeft = e.clientX - offsetX;
+        const maxLeft = window.innerWidth - btn.offsetWidth;
+        if(newLeft < 0) newLeft = 0;
+        if(newLeft > maxLeft) newLeft = maxLeft;
+        btn.style.left = newLeft + 'px';
+        btn.style.right = 'auto';
+    }
+});
+</script>
+</body>
+</html>
